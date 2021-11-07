@@ -71,21 +71,6 @@ void ABaseCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 	// handle touch devices
 	PlayerInputComponent->BindTouch(IE_Pressed, this, &ABaseCharacter::TouchStarted);
 	PlayerInputComponent->BindTouch(IE_Released, this, &ABaseCharacter::TouchStopped);
-
-	// VR headset functionality
-	PlayerInputComponent->BindAction("ResetVR", IE_Pressed, this, &ABaseCharacter::OnResetVR);
-}
-
-
-void ABaseCharacter::OnResetVR()
-{
-	// If PZ_CODING is added to a project via 'Add Feature' in the Unreal Editor the dependency on HeadMountedDisplay in PZ_CODING.Build.cs is not automatically propagated
-	// and a linker error will result.
-	// You will need to either:
-	//		Add "HeadMountedDisplay" to [YourProject].Build.cs PublicDependencyModuleNames in order to build successfully (appropriate if supporting VR).
-	// or:
-	//		Comment or delete the call to ResetOrientationAndPosition below (appropriate if not supporting VR)
-	UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition();
 }
 
 void ABaseCharacter::TouchStarted(ETouchIndex::Type FingerIndex, FVector Location)
