@@ -6,6 +6,8 @@
 #include "GameFramework/Character.h"
 #include "BaseCharacter.generated.h"
 
+class ABaseWeapon;
+
 UCLASS(config=Game)
 class ABaseCharacter : public ACharacter
 {
@@ -20,7 +22,11 @@ class ABaseCharacter : public ACharacter
 	class UCameraComponent* FollowCamera;
 public:
 	ABaseCharacter();
-
+	
+	void StartFire();
+	void StopFire();
+	void Reload();
+	
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float BaseTurnRate;
@@ -36,7 +42,8 @@ public:
 	float Stamina = 0.0f;
 
 protected:
-
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	/** Called for forwards/backward input */
 	void MoveForward(float Value);
 
@@ -60,6 +67,15 @@ protected:
 
 	/** Handler for when a touch input stops. */
 	void TouchStopped(ETouchIndex::Type FingerIndex, FVector Location);
+	
+	UPROPERTY(EditAnywhere, Category = "Weapon")
+	TSubclassOf<ABaseWeapon> Weapon;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	ABaseWeapon* CurrentWeapon = nullptr;
+	
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
+	FName WeaponAttachSocketName = "WeaponSocket";
 
 protected:
 	// APawn interface
