@@ -10,6 +10,7 @@
 #include "GameFramework/SpringArmComponent.h"
 
 #include "Weapon/BaseWeapon.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -161,5 +162,17 @@ void ABaseCharacter::StopFire()
 
 void ABaseCharacter::Reload()
 {
-	CurrentWeapon->Reload();
+	//CurrentWeapon->Reload();
+	
+	//UKismetSystemLibrary::DoesImplementInterface(CurrentWeapon, UReloadableInterface::StaticClass());
+	
+	if(CurrentWeapon->GetClass()->ImplementsInterface(UReloadableInterface::StaticClass()))
+	{
+		ReloadableInterface = CurrentWeapon;
+		
+		if(!ReloadableInterface) return;
+		
+		if(ReloadableInterface->CanReload())
+			IReloadableInterface::Execute_Reload(CurrentWeapon);
+	}
 }

@@ -1,10 +1,10 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Interfaces/ReloadableInterface.h"
 #include "BaseCharacter.generated.h"
+
 
 class ABaseWeapon;
 
@@ -41,6 +41,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category=Stamina)
 	float Stamina = 0.0f;
 
+	IReloadableInterface* ReloadableInterface;
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

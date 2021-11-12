@@ -2,12 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Interfaces/ReloadableInterface.h"
 #include "BaseWeapon.generated.h"
 
 class USkeletalMeshComponent;
 
 UCLASS()
-class PZ_CODING_API ABaseWeapon : public AActor
+class PZ_CODING_API ABaseWeapon : public AActor, public IReloadableInterface
 {
 	GENERATED_BODY()
 	
@@ -17,14 +18,25 @@ public:
 	
 	void StartFire(); //должна вызываться когда игрок нажимает ЛКМ
 	void StopFire();
-	void Reload();	// должна вызываться на кнопку R и когда после выстрела у оружия нет патронов
+
+	UFUNCTION(BlueprintCallable)
+	int32 GetAmmoPerClip() const {return CurrentAmmoInClip;}
+	UFUNCTION(BlueprintCallable)
+	int32 GetCurrentAmmo() const {return CurrentAmmo;}
+	
+	//////// INTERFACE  IReloadableInterface /////////////
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void Reload();
+	virtual void Reload_Implementation(); // должна вызываться на кнопку R и когда после выстрела у оружия нет патронов
+	//////// INTERFACE  IReloadableInterface /////////////
 	
 protected:
 	
 	virtual void BeginPlay() override;
 	
 	bool CanFire() const; // проверяет кол-во патронов и должна вызываться когда игрок пытается выстрелить
-	bool CanReload() const; // проверяет можно ли перезарядить оружие
+	//bool CanReload() const; // проверяет можно ли перезарядить оружи
+	virtual bool CanReload() const override;
 	void UseAmmo(); // использует патроны в магазине
 	void WeaponTrace(); // Реализация HitSca
 	bool IsAmmoEmpty() const;
@@ -55,7 +67,7 @@ protected:
 	int32 CurrentAmmoInClip = 0; // текущее количество патронов в магазине
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-	float TimeBetweenShots = 0.2f;
+	float TimeBetweenShots = 0.5f;
 	
 	bool bIsReloading = false;
 
