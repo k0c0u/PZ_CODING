@@ -21,7 +21,8 @@ void ABaseWeapon::BeginPlay()
 
 void ABaseWeapon::StartFire()
 {
-	if (!CanFire()) return;
+	if (!CanFire()) {return;}
+	
 	GetWorldTimerManager().SetTimer(FireHandle, this, &ABaseWeapon::WeaponTrace, TimeBetweenShots, true);
 }
 
@@ -42,13 +43,14 @@ bool ABaseWeapon::CanReload() const
 
 void ABaseWeapon::Reload_Implementation()
 {
-	if (!CanReload()) return;
+	if (!CanReload()){ return;}
 	
 	StopFire();
 	
 	bIsReloading = true;
 	
-	if (CurrentAmmo == 0) return;
+	if (CurrentAmmo == 0) {return;}
+	
 	--CurrentAmmo;
 	
 	CurrentAmmoInClip = AmmoPerClip;
@@ -57,18 +59,20 @@ void ABaseWeapon::Reload_Implementation()
 
 void ABaseWeapon::UseAmmo()
 {
-	if (CurrentAmmoInClip == 0) return;
+	if (CurrentAmmoInClip == 0) {return;}
 
 	--CurrentAmmoInClip;
 
 	if (IsClipEmpty() && !IsAmmoEmpty())
+	{
 		StopFire();
+	}
 }
 
 void ABaseWeapon::WeaponTrace()
 {
 	AActor* MyOwner = GetOwner();
-	if(!MyOwner) return;
+	if(!MyOwner) {return;}
 	
 	FVector EyeLocation;
 	FRotator EyeRotation;
@@ -84,16 +88,16 @@ void ABaseWeapon::WeaponTrace()
 	Params.AddIgnoredActor(this);
 
 	FHitResult Hit;
-	if (!GetWorld()) return;
+	if (!GetWorld()) {return;}
 	GetWorld()->LineTraceSingleByChannel(Hit, EyeLocation, TraceEnd, ECollisionChannel::ECC_Visibility, Params);
-	UseAmmo();
+	
 	if(Hit.bBlockingHit)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, Hit.GetActor()->GetName());
 		UGameplayStatics::ApplyPointDamage(Hit.GetActor(), Damage, ShootDirection, Hit, MyOwner->GetInstigatorController(), MyOwner, UDamageType::StaticClass());
 	}
 	//DecreaseAmmo
-	
+	UseAmmo();
 }
 
 bool ABaseWeapon::IsAmmoEmpty() const

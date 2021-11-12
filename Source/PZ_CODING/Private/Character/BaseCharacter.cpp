@@ -150,6 +150,7 @@ void ABaseCharacter::MoveRight(float Value)
 		AddMovementInput(Direction, Value);
 	}
 }
+
 void ABaseCharacter::StartFire()
 {
 	CurrentWeapon->StartFire();
@@ -170,9 +171,11 @@ void ABaseCharacter::Reload()
 	{
 		ReloadableInterface = CurrentWeapon;
 		
-		if(!ReloadableInterface) return;
+		if(!ReloadableInterface) {return;}
 		
 		if(ReloadableInterface->CanReload())
+		{
 			IReloadableInterface::Execute_Reload(CurrentWeapon);
+		}
 	}
 }
