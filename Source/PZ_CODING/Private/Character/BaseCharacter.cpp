@@ -9,6 +9,9 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 
+#include "Weapon/BaseWeapon.h"
+#include "Kismet/KismetSystemLibrary.h"
+
 //////////////////////////////////////////////////////////////////////////
 
 
@@ -47,6 +50,7 @@ ABaseCharacter::ABaseCharacter()
 	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
 }
 
+
 //////////////////////////////////////////////////////////////////////////
 // Input
 
@@ -56,6 +60,9 @@ void ABaseCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 	check(PlayerInputComponent);
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
+	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &ABaseCharacter::StartFire);
+	PlayerInputComponent->BindAction("Fire", IE_Released, this, &ABaseCharacter::StopFire);
+	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &ABaseCharacter::Reload);
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &ABaseCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &ABaseCharacter::MoveRight);
@@ -95,6 +102,26 @@ void ABaseCharacter::LookUpAtRate(float Rate)
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
+void ABaseCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	
+	CurrentWeapon = GetWorld()->SpawnActor<ABaseWeapon>(Weapon, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParameters);
+	if(!CurrentWeapon) return;
+	CurrentWeapon->SetOwner(this);
+	CurrentWeapon->AttachToComponent(GetMesh(),FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
+}
+
+void ABaseCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	
+	CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+}
+
 void ABaseCharacter::MoveForward(float Value)
 {
 	if ((Controller != nullptr) && (Value != 0.0f))
@@ -121,5 +148,34 @@ void ABaseCharacter::MoveRight(float Value)
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 		// add movement in that direction
 		AddMovementInput(Direction, Value);
+	}
+}
+
+void ABaseCharacter::StartFire()
+{
+	CurrentWeapon->StartFire();
+}
+
+void ABaseCharacter::StopFire()
+{
+	CurrentWeapon->StopFire();
+}
+
+void ABaseCharacter::Reload()
+{
+	//CurrentWeapon->Reload();
+	
+	//UKismetSystemLibrary::DoesImplementInterface(CurrentWeapon, UReloadableInterface::StaticClass());
+	
+	if(CurrentWeapon->GetClass()->ImplementsInterface(UReloadableInterface::StaticClass()))
+	{
+		ReloadableInterface = CurrentWeapon;
+		
+		if(!ReloadableInterface) {return;}
+		
+		if(ReloadableInterface->CanReload())
+		{
+			IReloadableInterface::Execute_Reload(CurrentWeapon);
+		}
 	}
 }

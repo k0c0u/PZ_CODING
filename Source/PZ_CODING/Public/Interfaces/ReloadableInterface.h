@@ -18,8 +18,9 @@ class PZ_CODING_API IReloadableInterface
 	
 public:
 
-	bool CanReload();  // обязывает реализовать проверку на возможность перезарядки оружия
+	virtual bool CanReload() const = 0;  // обязывает реализовать проверку на возможность перезарядки оружия
 
-	void Reload();  // обязывает реализовать перезарядку
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void Reload(); // обязывает реализовать перезарядку
 	
 };
