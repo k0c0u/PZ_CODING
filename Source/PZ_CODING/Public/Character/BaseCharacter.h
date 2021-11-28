@@ -5,6 +5,8 @@
 #include "Interfaces/ReloadableInterface.h"
 #include "BaseCharacter.generated.h"
 
+DECLARE_EVENT(ABaseCharacter, FOnDestroyPlayer);
+DECLARE_EVENT(ABaseCharacter, FOnDamagePlayer);
 
 class ABaseWeapon;
 
@@ -35,21 +37,27 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float BaseLookUpRate;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category=Healt)
-	float Health = 0.0f;
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category=Health, meta = (ClampMin = "0.0", ClampMax = "100.0"))
+	float Health = 100.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category=Stamina)
 	float Stamina = 0.0f;
 
 	IReloadableInterface* ReloadableInterface;
+	
+	FOnDestroyPlayer OnDestroyPlayer;
+	FOnDamagePlayer OnDamagePlayer;
+
 protected:
+	
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	/** Called for forwards/backward input */
+	
 	void MoveForward(float Value);
-
-	/** Called for side to side input */
 	void MoveRight(float Value);
+
+	void RegenerationHealth();
+	void DamageToPlayer();
 
 	/** 
 	 * Called via input to turn at a given rate. 
@@ -78,6 +86,15 @@ protected:
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
 	FName WeaponAttachSocketName = "WeaponSocket";
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Health)
+	float RegenHealth = 3.0f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage")
+	float Damage = 10.0f;
+	
+	FTimerHandle RegenerationHealthTimerHandle;
+	FTimerHandle DamageTimerHandle;
+
 protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -88,5 +105,6 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	
 };
 

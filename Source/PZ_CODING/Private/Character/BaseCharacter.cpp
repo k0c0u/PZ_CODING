@@ -1,5 +1,3 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "Character/BaseCharacter.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "Camera/CameraComponent.h"
@@ -11,6 +9,7 @@
 
 #include "Weapon/BaseWeapon.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "TimerManager.h"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -50,6 +49,31 @@ ABaseCharacter::ABaseCharacter()
 	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
 }
 
+void ABaseCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	
+	CurrentWeapon = GetWorld()->SpawnActor<ABaseWeapon>(Weapon, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParameters);
+	if(!CurrentWeapon) return;
+	CurrentWeapon->SetOwner(this);
+	CurrentWeapon->AttachToComponent(GetMesh(),FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
+
+	// 1.Timer that restores the player's health up to 100 HP (3 health, every 2 seconds)
+	GetWorldTimerManager().SetTimer(RegenerationHealthTimerHandle, this, &ThisClass::RegenerationHealth, 2.0f, true);
+
+	// 3. Timer that deals damage (10 damage, every second)
+	GetWorldTimerManager().SetTimer(DamageTimerHandle, this, &ThisClass::DamageToPlayer, 1.0f, true);
+}
+
+void ABaseCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	
+	CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+}
 
 //////////////////////////////////////////////////////////////////////////
 // Input
@@ -100,26 +124,6 @@ void ABaseCharacter::LookUpAtRate(float Rate)
 {
 	// calculate delta for this frame from the rate information
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
-}
-
-void ABaseCharacter::BeginPlay()
-{
-	Super::BeginPlay();
-
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	
-	CurrentWeapon = GetWorld()->SpawnActor<ABaseWeapon>(Weapon, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParameters);
-	if(!CurrentWeapon) return;
-	CurrentWeapon->SetOwner(this);
-	CurrentWeapon->AttachToComponent(GetMesh(),FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
-}
-
-void ABaseCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-	Super::EndPlay(EndPlayReason);
-	
-	CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 }
 
 void ABaseCharacter::MoveForward(float Value)
@@ -177,5 +181,39 @@ void ABaseCharacter::Reload()
 		{
 			IReloadableInterface::Execute_Reload(CurrentWeapon);
 		}
+	}
+}
+
+void ABaseCharacter::RegenerationHealth()
+{
+	if(Health < 100)
+	{
+		Health += RegenHealth;
+	}
+}
+
+void ABaseCharacter::DamageToPlayer()
+{
+// 2.	
+	if(Health > 0)
+	{
+		Health -= Damage;
+		
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Blue, FString::Printf(TEXT("HealthPlayer %f"), Health));
+
+		// 5. When dealing damage to player, actor dealing damage too
+		if(OnDamagePlayer.IsBound())
+		{
+			OnDamagePlayer.Broadcast();
+		}
+	}
+	else
+	{
+		// 4. When destroying a player, destroy actor too
+		if(OnDestroyPlayer.IsBound())
+		{
+			OnDestroyPlayer.Broadcast();
+		}
+		Destroy();
 	}
 }
