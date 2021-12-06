@@ -37,6 +37,7 @@ void APZ_07_SpyCameraActor::BoxBeginOverlap(UPrimitiveComponent* OverlappedCompo
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	FViewTargetTransitionParams TransitionParams;
 	TransitionParams.BlendTime = 2.0f;
+	TransitionParams.bLockOutgoing = true;
 	PC->SetViewTarget(this, TransitionParams);
 
 	if((BasePawn = Cast<APZ_07_BasePawn>(OtherActor)) != nullptr)
@@ -51,6 +52,7 @@ void APZ_07_SpyCameraActor::BoxEndOverlap(UPrimitiveComponent* OverlappedCompone
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	FViewTargetTransitionParams TransitionParams;
 	TransitionParams.BlendTime = 2.0f;
+	TransitionParams.bLockOutgoing = true;
 	PC->SetViewTarget(PC->GetPawn(), TransitionParams);
 
 	if(Cast<APZ_07_BasePawn>(OtherActor))
@@ -67,10 +69,10 @@ void APZ_07_SpyCameraActor::DetectionPlayer()
 {
 	if (!BasePawn) {return;}
 
-	const auto Mesh = BasePawn->FindComponentByClass<UStaticMeshComponent>();
+	UStaticMeshComponent* Mesh = BasePawn->FindComponentByClass<UStaticMeshComponent>();
 	if (!Mesh) {return;}
 
-	const auto Material = Mesh->GetMaterial(0);
+	UMaterialInterface* Material = Mesh->GetMaterial(0);
 	if (!Material) {return;}
 
 	UMaterialInstanceDynamic* DynamicMaterial = UMaterialInstanceDynamic::Create(Material,nullptr);

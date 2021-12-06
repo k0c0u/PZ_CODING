@@ -19,18 +19,21 @@ public:
 	APZ_07_BasePawn();
 
 protected:
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
 	virtual void BeginPlay() override;
 
 	void MoveForward(float Value);
 	void MoveRight(float Value);
+
+	void CameraBlendComplete();
 	
 	UPROPERTY(VisibleAnywhere)
 	USphereComponent* SphereComp;
 
 	UPROPERTY(VisibleAnywhere)
 	UPawnMovementComponent* MovementComp;
-	
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	UPROPERTY(Transient)
+	AActor* ViewActor = nullptr;
 };
