@@ -5,6 +5,7 @@
 #include "Components/SphereComponent.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "GameFramework/PawnMovementComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 APZ_07_BasePawn::APZ_07_BasePawn()
@@ -29,14 +30,17 @@ APZ_07_BasePawn::APZ_07_BasePawn()
 void APZ_07_BasePawn::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	APlayerCameraManager* CM = UGameplayStatics::GetPlayerCameraManager(this, 0);
+	CM->OnBlendComplete().AddUObject(this, &APZ_07_BasePawn::CameraBlendComplete);
+	ViewActor = CM->GetViewTargetPawn();
 }
 
 void APZ_07_BasePawn::MoveForward(float Value)
 {
 	if(Value != 0.0f)
 	{
-		AddMovementInput(GetActorForwardVector(), Value);
+		AddMovementInput(ViewActor->GetActorForwardVector(), Value);
 	}
 }
 
@@ -44,8 +48,13 @@ void APZ_07_BasePawn::MoveRight(float Value)
 {
 	if(Value != 0.0f)
 	{
-		AddMovementInput(GetActorRightVector(), Value);
+		AddMovementInput(ViewActor->GetActorRightVector(), Value);
 	}
+}
+
+void APZ_07_BasePawn::CameraBlendComplete()
+{
+	ViewActor = GetController()->GetViewTarget();
 }
 
 // Called to bind functionality to input
