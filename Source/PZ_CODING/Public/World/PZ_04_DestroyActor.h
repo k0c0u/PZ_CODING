@@ -6,6 +6,14 @@
 #include "GameFramework/Actor.h"
 #include "PZ_04_DestroyActor.generated.h"
 
+////PZ_08/////
+UENUM(BlueprintType)
+enum class Status : uint8
+{
+	Stopped     UMETA(DisplayName = "Stopped"),
+	Attacking   UMETA(DisplayName = "Attacking"),
+};
+////PZ_08/////
 
 class ABaseCharacter;
 UCLASS()
@@ -16,6 +24,10 @@ class PZ_CODING_API APZ_04_DestroyActor : public AActor
 public:	
 	// Sets default values for this actor's properties
 	APZ_04_DestroyActor();
+
+	////PZ_08/////
+	Status CurrentStatus = Status::Attacking;
+	////PZ_08/////
 
 protected:
 	// Called when the game starts or when spawned

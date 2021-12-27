@@ -10,6 +10,18 @@ DECLARE_EVENT(ABaseCharacter, FOnDamagePlayer);
 
 class ABaseWeapon;
 
+////PZ_08/////
+USTRUCT(BlueprintType)
+struct FHealthData
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category=Health, meta = (ClampMin = "0.0", ClampMax = "100.0"))
+	float Health = 100.0f;
+};
+////PZ_08/////
+
+
 UCLASS(config=Game)
 class ABaseCharacter : public ACharacter
 {
@@ -22,42 +34,19 @@ class ABaseCharacter : public ACharacter
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
+
 public:
 	ABaseCharacter();
-	
-	void StartFire();
-	void StopFire();
-	void Reload();
-	
-	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
-	float BaseTurnRate;
-
-	/** Base look up/down rate, in deg/sec. Other scaling may affect final rate. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
-	float BaseLookUpRate;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category=Health, meta = (ClampMin = "0.0", ClampMax = "100.0"))
-	float Health = 100.0f;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category=Stamina)
-	float Stamina = 0.0f;
-
-	IReloadableInterface* ReloadableInterface;
-	
-	FOnDestroyPlayer OnDestroyPlayer;
-	FOnDamagePlayer OnDamagePlayer;
 
 protected:
 	
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 	
 	void MoveForward(float Value);
 	void MoveRight(float Value);
-
-	void RegenerationHealth();
-	void DamageToPlayer();
 
 	/** 
 	 * Called via input to turn at a given rate. 
@@ -76,6 +65,48 @@ protected:
 
 	/** Handler for when a touch input stops. */
 	void TouchStopped(ETouchIndex::Type FingerIndex, FVector Location);
+
+	// APawn interface
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	// End of APawn interface
+	
+public:
+	
+	void StartFire();
+	void StopFire();
+	void Reload();
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
+	float BaseTurnRate;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
+	float BaseLookUpRate;
+
+	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category=Health, meta = (ClampMin = "0.0", ClampMax = "100.0"))
+	//float Health = 100.0f;
+
+	////PZ_08/////
+	FHealthData HealthData;
+	////PZ_08/////
+
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category=Stamina)
+	float Stamina = 0.0f;
+
+	
+	IReloadableInterface* ReloadableInterface;
+	
+	FOnDestroyPlayer OnDestroyPlayer;
+	FOnDamagePlayer OnDamagePlayer;
+
+
+protected:
+
+	/*void RegenerationHealth();
+	void DamageToPlayer();*/
+
+	/*FTimerHandle RegenerationHealthTimerHandle;
+	FTimerHandle DamageTimerHandle;*/
 	
 	UPROPERTY(EditAnywhere, Category = "Weapon")
 	TSubclassOf<ABaseWeapon> Weapon;
@@ -92,13 +123,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage")
 	float Damage = 10.0f;
 	
-	FTimerHandle RegenerationHealthTimerHandle;
-	FTimerHandle DamageTimerHandle;
-
-protected:
-	// APawn interface
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-	// End of APawn interface
 
 public:
 	/** Returns CameraBoom subobject **/
