@@ -10,8 +10,9 @@
 UENUM(BlueprintType)
 enum class Status : uint8
 {
-	Stopped     UMETA(DisplayName = "Stopped"),
-	Attacking   UMETA(DisplayName = "Attacking"),
+	Stopped     = 0 UMETA(DisplayName = "Stopped"),
+	Attacking    = 1 UMETA(DisplayName = "Attacking"),
+	MAX
 };
 ////PZ_08/////
 
@@ -27,6 +28,9 @@ public:
 
 	////PZ_08/////
 	Status CurrentStatus = Status::Attacking;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Status")
+	TEnumAsByte<Status> NewStatus;
 	////PZ_08/////
 
 protected:
