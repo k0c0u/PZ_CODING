@@ -62,10 +62,10 @@ void ABaseCharacter::BeginPlay()
 	CurrentWeapon->AttachToComponent(GetMesh(),FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
 
 	// 1.Timer that restores the player's health up to 100 HP (3 health, every 2 seconds)
-	GetWorldTimerManager().SetTimer(RegenerationHealthTimerHandle, this, &ThisClass::RegenerationHealth, 2.0f, true);
+	//GetWorldTimerManager().SetTimer(RegenerationHealthTimerHandle, this, &ThisClass::RegenerationHealth, 2.0f, true);
 
 	// 3. Timer that deals damage (10 damage, every second)
-	GetWorldTimerManager().SetTimer(DamageTimerHandle, this, &ThisClass::DamageToPlayer, 1.0f, true);
+	//GetWorldTimerManager().SetTimer(DamageTimerHandle, this, &ThisClass::DamageToPlayer, 1.0f, true);
 }
 
 void ABaseCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -74,7 +74,18 @@ void ABaseCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	
 	CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 }
-
+////PZ_08/////
+float ABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
+	AActor* DamageCauser)
+{
+	Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	
+	HealthData.Health -= DamageAmount;
+	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Blue, FString::Printf(TEXT("HealthPlayer %f"), HealthData.Health));
+	return DamageAmount;
+}
+////PZ_08/////
+///
 //////////////////////////////////////////////////////////////////////////
 // Input
 
@@ -184,7 +195,7 @@ void ABaseCharacter::Reload()
 	}
 }
 
-void ABaseCharacter::RegenerationHealth()
+/*void ABaseCharacter::RegenerationHealth()
 {
 	if(Health < 100)
 	{
@@ -217,3 +228,4 @@ void ABaseCharacter::DamageToPlayer()
 		Destroy();
 	}
 }
+*/
