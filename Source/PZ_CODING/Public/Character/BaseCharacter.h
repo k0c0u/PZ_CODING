@@ -5,20 +5,22 @@
 #include "Interfaces/ReloadableInterface.h"
 #include "BaseCharacter.generated.h"
 
+
 DECLARE_EVENT(ABaseCharacter, FOnDestroyPlayer);
 DECLARE_EVENT(ABaseCharacter, FOnDamagePlayer);
 
 class ABaseWeapon;
+class ABaseProjectile;
 
 ////PZ_08/////
-USTRUCT(BlueprintType)
+/*USTRUCT(BlueprintType)
 struct FHealthData
 {
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category=Health, meta = (ClampMin = "0.0", ClampMax = "100.0"))
 	float Health = 100.0f;
-};
+};*/
 ////PZ_08/////
 
 
@@ -37,7 +39,9 @@ class ABaseCharacter : public ACharacter
 
 public:
 	ABaseCharacter();
-
+	//////PZ_09/////
+	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	//////PZ_09/////
 protected:
 	
 	virtual void BeginPlay() override;
@@ -71,42 +75,71 @@ protected:
 	// End of APawn interface
 	
 public:
-	
+
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
 	void StartFire();
+	
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
 	void StopFire();
+	
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
 	void Reload();
+
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	void SetCurrentHealth(float HealthValue);
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure,Category = "Health")
+	FORCEINLINE float GetMaxHealth() const {return MaxHealth;}
+
+	UFUNCTION(BlueprintCallable, BlueprintPure,Category = "Health")
+	FORCEINLINE float GetCurrentHealth() const {return CurrentHealth;}
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float BaseTurnRate;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float BaseLookUpRate;
-
-	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category=Health, meta = (ClampMin = "0.0", ClampMax = "100.0"))
-	//float Health = 100.0f;
-
-	////PZ_08/////
-	FHealthData HealthData;
-	////PZ_08/////
-
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category=Stamina)
 	float Stamina = 0.0f;
-
 	
 	IReloadableInterface* ReloadableInterface;
 	
 	FOnDestroyPlayer OnDestroyPlayer;
 	FOnDamagePlayer OnDamagePlayer;
 
-
+	////PZ_08/////
+	//FHealthData HealthData;
+	////PZ_08/////
+	///
 protected:
 
-	/*void RegenerationHealth();
-	void DamageToPlayer();*/
+//////PZ_09/////
 
-	/*FTimerHandle RegenerationHealthTimerHandle;
-	FTimerHandle DamageTimerHandle;*/
+	UFUNCTION(Server, Reliable)
+	void HandleFire();
+
+	FTimerHandle FiringTimer;
+
+	UFUNCTION()
+	void OnRep_CurrentHealth();
+
+	void OnHealthUpdate();
+
+	UPROPERTY(EditAnywhere, ReplicatedUsing = OnRep_CurrentHealth, Category = "Health")
+	float CurrentHealth;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Health", meta = (ClampMin = "0.0", ClampMax = "100.0"))
+	float MaxHealth;
+
+	UPROPERTY(EditDefaultsOnly, Category = " Projectile")
+	float FireRate;
+
+	bool bIsFiringWeapon;
+
+	UPROPERTY(EditDefaultsOnly, Category = " Projectile")
+	TSubclassOf<ABaseProjectile> ProjectileClass;
+//////PZ_09////
 	
 	UPROPERTY(EditAnywhere, Category = "Weapon")
 	TSubclassOf<ABaseWeapon> Weapon;
@@ -122,8 +155,13 @@ protected:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage")
 	float Damage = 10.0f;
-	
 
+	/*void RegenerationHealth();
+	void DamageToPlayer();*/
+
+	/*FTimerHandle RegenerationHealthTimerHandle;
+	FTimerHandle DamageTimerHandle;*/
+	
 public:
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }

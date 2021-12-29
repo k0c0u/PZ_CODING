@@ -2,13 +2,16 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "TimerManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "Net/UnrealNetwork.h"
 
 ABaseWeapon::ABaseWeapon()
 {
 	PrimaryActorTick.bCanEverTick = false;
-
+	bReplicates = true;
 	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SkeletalMeshComponent"));
 	RootComponent = WeaponMesh;
+
+	//SetReplicates(true);
 }
 
 void ABaseWeapon::BeginPlay()
@@ -33,7 +36,7 @@ void ABaseWeapon::StopFire()
 
 bool ABaseWeapon::CanFire() const
 {
-	return CurrentAmmoInClip > 0 && CurrentAmmo > -1 && !bIsReloading;
+	return CurrentAmmoInClip > 0 && CurrentAmmo >= 0 && !bIsReloading;
 }
 
 bool ABaseWeapon::CanReload() const
@@ -59,11 +62,11 @@ void ABaseWeapon::Reload_Implementation()
 
 void ABaseWeapon::UseAmmo()
 {
-	if (CurrentAmmoInClip == 0) {return;}
+	if (IsClipEmpty()) {return;}
 
 	--CurrentAmmoInClip;
 
-	if (IsClipEmpty() && !IsAmmoEmpty())
+	if (IsClipEmpty() && !IsAmmoEmpty() || IsAmmoEmpty())
 	{
 		StopFire();
 	}
@@ -71,6 +74,12 @@ void ABaseWeapon::UseAmmo()
 
 void ABaseWeapon::WeaponTrace()
 {
+	
+	if(GetLocalRole() < ROLE_Authority)
+	{
+		ServerFire();
+	}
+	
 	AActor* MyOwner = GetOwner();
 	if(!MyOwner) {return;}
 	
@@ -113,4 +122,14 @@ bool ABaseWeapon::IsClipEmpty() const
 void ABaseWeapon::ClearReloadTimer()
 {
 	bIsReloading = false;
+}
+
+void ABaseWeapon::ServerFire_Implementation()
+{
+	WeaponTrace();
+}
+
+bool ABaseWeapon::ServerFire_Validate()
+{
+	return true;
 }

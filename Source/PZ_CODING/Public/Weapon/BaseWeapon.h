@@ -42,6 +42,9 @@ protected:
 	bool IsAmmoEmpty() const;
 	bool IsClipEmpty() const;
 	void ClearReloadTimer();
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerFire();
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
 	USkeletalMeshComponent* WeaponMesh = nullptr;
