@@ -144,7 +144,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Weapon")
 	TSubclassOf<ABaseWeapon> Weapon;
 	
-	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	UPROPERTY(BlueprintReadOnly, Replicated, Category = "Weapon")
 	ABaseWeapon* CurrentWeapon = nullptr;
 	
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Weapon")

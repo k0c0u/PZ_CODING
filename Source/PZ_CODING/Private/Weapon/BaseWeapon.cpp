@@ -7,11 +7,11 @@
 ABaseWeapon::ABaseWeapon()
 {
 	PrimaryActorTick.bCanEverTick = false;
-	bReplicates = true;
+	
 	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SkeletalMeshComponent"));
 	RootComponent = WeaponMesh;
 
-	//SetReplicates(true);
+	SetReplicates(true);
 }
 
 void ABaseWeapon::BeginPlay()
@@ -105,6 +105,7 @@ void ABaseWeapon::WeaponTrace()
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, Hit.GetActor()->GetName());
 		UGameplayStatics::ApplyPointDamage(Hit.GetActor(), Damage, ShootDirection, Hit, MyOwner->GetInstigatorController(), MyOwner, UDamageType::StaticClass());
 	}
+	
 	//DecreaseAmmo
 	UseAmmo();
 }

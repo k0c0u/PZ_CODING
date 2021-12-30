@@ -62,19 +62,25 @@ void ABaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ABaseCharacter, CurrentHealth);
+	DOREPLIFETIME(ABaseCharacter, CurrentWeapon);
 }
 
 void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	if(HasAuthority()) //if(GetLocalRole() == ROLE_Authority)
+	{
+		FActorSpawnParameters SpawnParameters;
+		SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		SpawnParameters.Owner = this;
 	
-	CurrentWeapon = GetWorld()->SpawnActor<ABaseWeapon>(Weapon, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParameters);
-	if(!CurrentWeapon) return;
-	CurrentWeapon->SetOwner(this);
-	CurrentWeapon->AttachToComponent(GetMesh(),FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
+		CurrentWeapon = GetWorld()->SpawnActor<ABaseWeapon>(Weapon, SpawnParameters);
+		if(!CurrentWeapon) return;
+		
+		CurrentWeapon->AttachToComponent(GetMesh(),FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
+	}
+	
 	
 	
 	// 1.Timer that restores the player's health up to 100 HP (3 health, every 2 seconds)
