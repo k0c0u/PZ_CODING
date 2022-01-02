@@ -4,6 +4,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystem.h"
+#include "Character/BaseCharacter.h"
 
 ABaseProjectile::ABaseProjectile()
 {
@@ -64,11 +65,11 @@ void ABaseProjectile::Destroyed()
 void ABaseProjectile::OnProjectileImpact(UPrimitiveComponent* HitComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComponent, FVector NormalImpulse, const FHitResult& Hit)
 {
-	if(OtherActor)
+	if(ABaseCharacter* pBaseCharacter = Cast<ABaseCharacter>(OtherActor))
 	{
-		UGameplayStatics::ApplyPointDamage(OtherActor, Damage, NormalImpulse, Hit, GetInstigator()->Controller, this, DamageType);
+		UGameplayStatics::ApplyPointDamage( pBaseCharacter, Damage, NormalImpulse, Hit, pBaseCharacter->Controller, this, DamageType);
 	}
-
+	
 	Destroy();
 }
 

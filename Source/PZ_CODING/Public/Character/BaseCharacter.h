@@ -10,7 +10,7 @@ DECLARE_EVENT(ABaseCharacter, FOnDestroyPlayer);
 DECLARE_EVENT(ABaseCharacter, FOnDamagePlayer);
 
 class ABaseWeapon;
-class ABaseProjectile;
+
 
 ////PZ_08/////
 /*USTRUCT(BlueprintType)
@@ -115,9 +115,7 @@ public:
 protected:
 
 //////PZ_09/////
-
-	UFUNCTION(Server, Reliable)
-	void HandleFire();
+	
 
 	FTimerHandle FiringTimer;
 
@@ -137,12 +135,11 @@ protected:
 
 	bool bIsFiringWeapon;
 
-	UPROPERTY(EditDefaultsOnly, Category = " Projectile")
-	TSubclassOf<ABaseProjectile> ProjectileClass;
+	
 //////PZ_09////
 	
 	UPROPERTY(EditAnywhere, Category = "Weapon")
-	TSubclassOf<ABaseWeapon> Weapon;
+	TSubclassOf<ABaseWeapon> WeaponClass;
 	
 	UPROPERTY(BlueprintReadOnly, Replicated, Category = "Weapon")
 	ABaseWeapon* CurrentWeapon = nullptr;

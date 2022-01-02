@@ -1,8 +1,13 @@
 #include "Weapon/BaseWeapon.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "TimerManager.h"
+#include "Character/BaseCharacter.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
+#include "Weapon/Projectile/BaseProjectile.h"
+
+
+DEFINE_LOG_CATEGORY_STATIC(LogBaseWeapon, All, All);
 
 ABaseWeapon::ABaseWeapon()
 {
@@ -12,6 +17,7 @@ ABaseWeapon::ABaseWeapon()
 	RootComponent = WeaponMesh;
 
 	SetReplicates(true);
+	
 }
 
 void ABaseWeapon::BeginPlay()
@@ -20,18 +26,42 @@ void ABaseWeapon::BeginPlay()
 
 	CurrentAmmo = MaxAmmo;
 	CurrentAmmoInClip = AmmoPerClip;
+
+	if (ensureMsgf(!ProjectileClass, TEXT("ABaseWeapon::BeginPlay() ProjectileClass is nullptr")))
+	{
+		UE_LOG(LogBaseWeapon, Error, TEXT("ProjectileClass not selected"));
+		return;
+	}
 }
 
 void ABaseWeapon::StartFire()
 {
 	if (!CanFire()) {return;}
+
+	if(GetLocalRole() < ROLE_Authority)
+	{
+		GetWorldTimerManager().SetTimer(FireHandle, this, &ABaseWeapon::ServerFire, TimeBetweenShots, true);
+		
+	}
+	else
+	{
+		GetWorldTimerManager().SetTimer(FireHandle, this, &ABaseWeapon::Fire, TimeBetweenShots, true);
+	}
 	
-	GetWorldTimerManager().SetTimer(FireHandle, this, &ABaseWeapon::WeaponTrace, TimeBetweenShots, true);
 }
 
 void ABaseWeapon::StopFire()
 {
-	GetWorldTimerManager().ClearTimer(FireHandle);
+	if(GetLocalRole() < ROLE_Authority)
+	{
+		GetWorldTimerManager().ClearTimer(FireHandle);
+		
+	}
+	else
+	{
+		GetWorldTimerManager().ClearTimer(FireHandle);
+	}
+	//GetWorldTimerManager().ClearTimer(FireHandle);
 }
 
 bool ABaseWeapon::CanFire() const
@@ -72,44 +102,6 @@ void ABaseWeapon::UseAmmo()
 	}
 }
 
-void ABaseWeapon::WeaponTrace()
-{
-	
-	if(GetLocalRole() < ROLE_Authority)
-	{
-		ServerFire();
-	}
-	
-	AActor* MyOwner = GetOwner();
-	if(!MyOwner) {return;}
-	
-	FVector EyeLocation;
-	FRotator EyeRotation;
-
-	MyOwner->GetActorEyesViewPoint(EyeLocation, EyeRotation);
-
-	//FVector MuzzleLocation = WeaponMesh->GetSocketLocation(MuzzleSocketName);
-	FVector ShootDirection = EyeRotation.Vector();
-	FVector TraceEnd = EyeLocation + ShootDirection * Range;
-	
-	FCollisionQueryParams Params;
-	Params.AddIgnoredActor(MyOwner);
-	Params.AddIgnoredActor(this);
-
-	FHitResult Hit;
-	if (!GetWorld()) {return;}
-	GetWorld()->LineTraceSingleByChannel(Hit, EyeLocation, TraceEnd, ECollisionChannel::ECC_Visibility, Params);
-	
-	if(Hit.bBlockingHit)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, Hit.GetActor()->GetName());
-		UGameplayStatics::ApplyPointDamage(Hit.GetActor(), Damage, ShootDirection, Hit, MyOwner->GetInstigatorController(), MyOwner, UDamageType::StaticClass());
-	}
-	
-	//DecreaseAmmo
-	UseAmmo();
-}
-
 bool ABaseWeapon::IsAmmoEmpty() const
 {
 	return CurrentAmmo == 0 && IsClipEmpty();
@@ -127,10 +119,129 @@ void ABaseWeapon::ClearReloadTimer()
 
 void ABaseWeapon::ServerFire_Implementation()
 {
-	WeaponTrace();
+	Fire();
+	//GetWorldTimerManager().SetTimer(FireHandle, this, &ABaseWeapon::Fire, TimeBetweenShots, true);
 }
 
 bool ABaseWeapon::ServerFire_Validate()
 {
 	return true;
+}
+void ABaseWeapon::Fire()
+{
+	/*if(GetLocalRole() < ROLE_Authority)
+	{
+		ServerFire();
+	}*/
+	
+	if (!GetWorld() || IsAmmoEmpty())
+	{
+		StopFire();
+		return;
+	}
+	
+	AActor* MyOwner = GetOwner();
+	if(!MyOwner) {return;}
+	
+	!bProjectile ? LineTraceShot(MyOwner) : ProjectileShot(MyOwner);
+	
+	//DecreaseAmmo
+	UseAmmo();
+}
+
+void ABaseWeapon::WeaponTrace(FHitResult& HitResult, const FVector& TraceStart, const FVector& TraceEnd, AActor* MyOwner)
+{
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(MyOwner);
+	Params.AddIgnoredActor(this);
+	
+	if (!GetWorld()) {return;}
+	//GetWorld()->LineTraceSingleByChannel(Hit, EyeLocation, TraceEnd, ECollisionChannel::ECC_Visibility, Params);
+	
+	TArray<AActor*> ActorsToIgnore;
+	ActorsToIgnore.Add(MyOwner);
+	UKismetSystemLibrary::LineTraceSingle(this, TraceStart, TraceEnd,
+		UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_Visibility), false, ActorsToIgnore,
+		EDrawDebugTrace::ForDuration, HitResult,true, FLinearColor::Red,
+		FLinearColor::White, 0.3f);
+}
+
+bool ABaseWeapon::GetTraceStartEnd(AActor* MyOwner, FVector& TraceStart, FVector& TraceEnd, FVector& ShootDirection) const
+{
+	FVector EyeLocation;
+	FRotator EyeRotation;
+	if (!GetActorViewPoint(MyOwner, EyeLocation, EyeRotation)) return false;
+
+	TraceStart = EyeLocation;
+	ShootDirection = EyeRotation.Vector();
+	TraceEnd = TraceStart + ShootDirection * TraceMaxDistance;
+	return true;
+}
+
+bool ABaseWeapon::GetActorViewPoint(AActor* MyOwner, FVector& ViewLocation, FRotator& ViewRotation) const 
+{
+	if (!MyOwner) return false;
+	
+	MyOwner->GetActorEyesViewPoint(ViewLocation, ViewRotation);
+	return true;
+}
+/*
+void ABaseWeapon::HandleFire_Implementation()
+{
+	FVector SpawnLocation = GetActorLocation() + (GetControlRotation().Vector() * 100.0f) + (GetActorUpVector() * 50.0f);
+	FRotator SpawnRotation = GetControlRotation();
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Instigator = GetInstigator();
+	SpawnParameters.Owner = this;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	
+
+	ABaseProjectile* BaseProjectile = GetWorld()->SpawnActor<ABaseProjectile>(ProjectileClass, SpawnLocation,  SpawnRotation, SpawnParameters);
+}
+*/
+void ABaseWeapon::LineTraceShot(AActor* MyOwner)
+{
+	FVector TraceStart, TraceEnd, ShootDirection;
+	
+	if (!GetTraceStartEnd(MyOwner, TraceStart, TraceEnd, ShootDirection))
+	{
+		StopFire();
+		return;
+	}
+	FHitResult Hit;
+	WeaponTrace(Hit, TraceStart, TraceEnd, MyOwner);
+	
+	if(Hit.bBlockingHit)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, Hit.GetActor()->GetName());
+		UGameplayStatics::ApplyPointDamage(Hit.GetActor(), Damage, ShootDirection, Hit, MyOwner->GetInstigatorController(), MyOwner, UDamageType::StaticClass());
+	}
+}
+
+void ABaseWeapon::ProjectileShot(AActor* MyOwner)
+{
+	ABaseCharacter* pBaseCharacter = Cast<ABaseCharacter>(MyOwner);
+	
+	FVector SpawnLocation = GetActorLocation() + (pBaseCharacter->GetControlRotation().Vector() * 100.0f) + (GetActorUpVector() * 50.0f);
+	FRotator SpawnRotation = pBaseCharacter->GetControlRotation();
+	
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	
+	ABaseProjectile* BaseProjectile = GetWorld()->SpawnActor<ABaseProjectile>(ProjectileClass, SpawnLocation,  SpawnRotation, SpawnParams);
+
+	/*const FVector Direction = (EndPoint - StartPoint).GetSafeNormal();
+	const FTransform SpawnTransform(FRotator::ZeroRotator, StartPoint);
+	ABaseCharacter* pBaseCharacter = Cast<ABaseCharacter>(MyOwner);
+	if(!pBaseCharacter){return;}
+	ABaseProjectile* Projectile = GetWorld()->SpawnActorDeferred<ABaseProjectile>(ProjectileClass, SpawnTransform, this, pBaseCharacter, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	if (Projectile)
+	{
+		Projectile->SetShotDirection(Direction);
+		//Projectile->SetOwner(GetOwner());
+		Projectile->SetDamage(AmmoTypes[CurrentAmmoType].BaseDamage);
+		Projectile->FinishSpawning(SpawnTransform);
+	}
+*/
 }

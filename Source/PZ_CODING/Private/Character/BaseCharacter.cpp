@@ -12,7 +12,9 @@
 #include "Weapon/BaseWeapon.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "TimerManager.h"
-#include "Weapon/Projectile/BaseProjectile.h"
+
+
+DEFINE_LOG_CATEGORY_STATIC(LogBaseCharacter, All, All);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -68,20 +70,28 @@ void ABaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-
+	
+	if (ensureMsgf(!WeaponClass, TEXT("ABaseCharacter::BeginPlay() WeaponClass is nullptr")))
+	{
+		UE_LOG(LogBaseCharacter, Error, TEXT("WeaponClass not selected"));
+		return;
+	}
+	
 	if(HasAuthority()) //if(GetLocalRole() == ROLE_Authority)
 	{
 		FActorSpawnParameters SpawnParameters;
 		SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		SpawnParameters.Owner = this;
 	
-		CurrentWeapon = GetWorld()->SpawnActor<ABaseWeapon>(Weapon, SpawnParameters);
-		if(!CurrentWeapon) return;
+		CurrentWeapon = GetWorld()->SpawnActor<ABaseWeapon>(WeaponClass, SpawnParameters);
+		if(!CurrentWeapon)
+		{
+			UE_LOG(LogBaseCharacter, Error, TEXT("CurrentWeapon in Character equal nullptr"));
+			return;
+		}
 		
 		CurrentWeapon->AttachToComponent(GetMesh(),FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
 	}
-	
-	
 	
 	// 1.Timer that restores the player's health up to 100 HP (3 health, every 2 seconds)
 	//GetWorldTimerManager().SetTimer(RegenerationHealthTimerHandle, this, &ThisClass::RegenerationHealth, 2.0f, true);
@@ -93,8 +103,11 @@ void ABaseCharacter::BeginPlay()
 void ABaseCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
-	
-	CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+
+	if(CurrentWeapon)
+	{
+		CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	}
 }
 ////PZ_08/////
 float ABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
@@ -190,8 +203,11 @@ void ABaseCharacter::MoveRight(float Value)
 
 void ABaseCharacter::StartFire()
 {
-	CurrentWeapon->StartFire();
-	//CurrentWeapon->StartFire();
+	if(CurrentWeapon)
+	{
+		CurrentWeapon->StartFire();
+	}
+	
 
 	//////PZ_09/////
 	/*if(!bIsFiringWeapon)
@@ -206,8 +222,12 @@ void ABaseCharacter::StartFire()
 
 void ABaseCharacter::StopFire()
 {
-	CurrentWeapon->StopFire();
-
+	
+	if(CurrentWeapon)
+	{
+		CurrentWeapon->StopFire();
+	}
+	
 	//////PZ_09/////
 	//bIsFiringWeapon = false;
 	//////PZ_09/////
@@ -238,20 +258,6 @@ void ABaseCharacter::SetCurrentHealth(float HealthValue)
 		CurrentHealth = FMath::Clamp(HealthValue, 0.0f, MaxHealth);
 		OnHealthUpdate();
 	}
-}
-
-void ABaseCharacter::HandleFire_Implementation()
-{
-	FVector SpawnLocation = GetActorLocation() + (GetControlRotation().Vector() * 100.0f) + (GetActorUpVector() * 50.0f);
-	FRotator SpawnRotation = GetControlRotation();
-
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.Instigator = GetInstigator();
-	SpawnParameters.Owner = this;
-	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	
-
-	ABaseProjectile* BaseProjectile = GetWorld()->SpawnActor<ABaseProjectile>(ProjectileClass, SpawnLocation,  SpawnRotation, SpawnParameters);
 }
 
 void ABaseCharacter::OnRep_CurrentHealth()
@@ -313,4 +319,18 @@ void ABaseCharacter::DamageToPlayer()
 		Destroy();
 	}
 }
+
+	checkf(WeaponClass, TEXT("WeaponClass not selected"));
+	
+	check(WeaponClass);
+	
+	if (!ensure(WeaponClass))
+	{
+		UE_LOG(LogBaseCharacter, Error, TEXT("WeaponClass not selected"));
+		return;
+	}
+
+	//ensureMsgf(!WeaponClass, TEXT("WeaponClass not selected!"));
+	//ensureAlwaysMsgf(WeaponClass, TEXT( "ABaseCharacter::BeginPlay() WeaponClass is null" ) );
 */
+
