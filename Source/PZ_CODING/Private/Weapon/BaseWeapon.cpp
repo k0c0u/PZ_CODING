@@ -34,6 +34,14 @@ void ABaseWeapon::BeginPlay()
 	}
 }
 
+void ABaseWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ABaseWeapon, CurrentAmmo);
+	DOREPLIFETIME(ABaseWeapon, CurrentAmmoInClip);
+}
+
 void ABaseWeapon::StartFire()
 {
 	if (!CanFire()) {return;}
@@ -88,6 +96,11 @@ void ABaseWeapon::Reload_Implementation()
 	
 	CurrentAmmoInClip = AmmoPerClip;
 	GetWorldTimerManager().SetTimer(ReloadHandle, this, &ABaseWeapon::ClearReloadTimer, ReloadDuration, false);
+
+	if(!GetWorld()->IsServer())
+	{
+		ServerReload();
+	}
 }
 
 void ABaseWeapon::UseAmmo()
@@ -115,6 +128,11 @@ bool ABaseWeapon::IsClipEmpty() const
 void ABaseWeapon::ClearReloadTimer()
 {
 	bIsReloading = false;
+}
+
+void ABaseWeapon::ServerReload_Implementation()
+{
+	Reload();
 }
 
 void ABaseWeapon::ServerFire_Implementation()
@@ -223,13 +241,20 @@ void ABaseWeapon::ProjectileShot(AActor* MyOwner)
 {
 	ABaseCharacter* pBaseCharacter = Cast<ABaseCharacter>(MyOwner);
 	
-	FVector SpawnLocation = GetActorLocation() + (pBaseCharacter->GetControlRotation().Vector() * 100.0f) + (GetActorUpVector() * 50.0f);
-	FRotator SpawnRotation = pBaseCharacter->GetControlRotation();
+	//FVector SpawnLocation = GetActorLocation() + (pBaseCharacter->GetControlRotation().Vector() * 100.0f) + (GetActorUpVector() * 50.0f);
+	FVector SpawnLocation = WeaponMesh->GetSocketLocation(MuzzleSocketName);
+	
+	FRotator SpawnRotation = WeaponMesh->GetSocketRotation(MuzzleSocketName);
 	
 	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.Instigator = pBaseCharacter;
+	
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	
+	
 	ABaseProjectile* BaseProjectile = GetWorld()->SpawnActor<ABaseProjectile>(ProjectileClass, SpawnLocation,  SpawnRotation, SpawnParams);
+	
 
 	/*const FVector Direction = (EndPoint - StartPoint).GetSafeNormal();
 	const FTransform SpawnTransform(FRotator::ZeroRotator, StartPoint);

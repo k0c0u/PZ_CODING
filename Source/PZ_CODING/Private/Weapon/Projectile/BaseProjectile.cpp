@@ -12,7 +12,7 @@ ABaseProjectile::ABaseProjectile()
 	bReplicates = true;
 
 	SphereComponent = CreateDefaultSubobject<USphereComponent>(TEXT("RootComponent"));
-	SphereComponent->InitSphereRadius(37.5f);
+	SphereComponent->InitSphereRadius(15.f);
 	SphereComponent->SetCollisionProfileName(TEXT("BlockAllDynamic"));
 	SetRootComponent(SphereComponent);
 
@@ -65,12 +65,15 @@ void ABaseProjectile::Destroyed()
 void ABaseProjectile::OnProjectileImpact(UPrimitiveComponent* HitComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComponent, FVector NormalImpulse, const FHitResult& Hit)
 {
-	if(ABaseCharacter* pBaseCharacter = Cast<ABaseCharacter>(OtherActor))
+	if(GetInstigator() != OtherActor && GetOwner() != OtherActor)
 	{
-		UGameplayStatics::ApplyPointDamage( pBaseCharacter, Damage, NormalImpulse, Hit, pBaseCharacter->Controller, this, DamageType);
-	}
+		if(ABaseCharacter* pBaseCharacter = Cast<ABaseCharacter>(OtherActor))
+		{
+			UGameplayStatics::ApplyPointDamage( pBaseCharacter, Damage, NormalImpulse, Hit, pBaseCharacter->Controller, this, DamageType);
+		}
 	
-	Destroy();
+		Destroy();
+	}
 }
 
 

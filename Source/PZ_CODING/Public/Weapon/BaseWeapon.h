@@ -18,6 +18,7 @@ public:
 	// Sets default values for this actor's properties
 	ABaseWeapon();
 	
+	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	void StartFire(); //должна вызываться когда игрок нажимает ЛКМ
 	
@@ -55,7 +56,9 @@ protected:
 	
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerFire();
-
+	
+	UFUNCTION(Server, Reliable)
+	void ServerReload();
 	/*UFUNCTION(Server, Reliable)
 	void HandleFire();*/
 	
@@ -79,10 +82,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
 	int32 MaxAmmo = 2; // максимальное кол-во патронов
+	UPROPERTY(Replicated)
 	int32 CurrentAmmo = 0; // текущее количество патронов у персонажа
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
 	int32 AmmoPerClip = 3; // кол-во патронов в магазине
+	UPROPERTY(Replicated)
 	int32 CurrentAmmoInClip = 0; // текущее количество патронов в магазине
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
