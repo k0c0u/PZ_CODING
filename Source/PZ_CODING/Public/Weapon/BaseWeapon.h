@@ -6,6 +6,8 @@
 #include "BaseWeapon.generated.h"
 
 class USkeletalMeshComponent;
+class ABaseProjectile;
+
 
 UCLASS()
 class PZ_CODING_API ABaseWeapon : public AActor, public IReloadableInterface
@@ -16,7 +18,10 @@ public:
 	// Sets default values for this actor's properties
 	ABaseWeapon();
 	
+	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	void StartFire(); //должна вызываться когда игрок нажимает ЛКМ
+	
 	void StopFire();
 
 	UFUNCTION(BlueprintCallable)
@@ -33,15 +38,32 @@ public:
 protected:
 	
 	virtual void BeginPlay() override;
-	
+
+	void Fire();
+	bool GetTraceStartEnd(AActor* MyOwner, FVector& TraceStart, FVector& TraceEnd, FVector& ShootDirection) const;
+	bool GetActorViewPoint(AActor* MyOwner, FVector& ViewLocation, FRotator& ViewRotation) const;
+	void WeaponTrace(FHitResult& HitResult, const FVector& TraceStart, const FVector& TraceEnd, AActor* MyOwner);
+	void LineTraceShot(AActor* MyOwner);
+	void ProjectileShot(AActor* MyOwner);
 	bool CanFire() const; // проверяет кол-во патронов и должна вызываться когда игрок пытается выстрелить
 	//bool CanReload() const; // проверяет можно ли перезарядить оружи
 	virtual bool CanReload() const override;
 	void UseAmmo(); // использует патроны в магазине
-	void WeaponTrace(); // Реализация HitSca
+	
 	bool IsAmmoEmpty() const;
 	bool IsClipEmpty() const;
 	void ClearReloadTimer();
+	
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerFire();
+	
+	UFUNCTION(Server, Reliable)
+	void ServerReload();
+	/*UFUNCTION(Server, Reliable)
+	void HandleFire();*/
+	
+	UPROPERTY(EditDefaultsOnly, Category = " Projectile")
+	TSubclassOf<ABaseProjectile> ProjectileClass;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
 	USkeletalMeshComponent* WeaponMesh = nullptr;
@@ -53,22 +75,27 @@ protected:
 	float ReloadDuration = 1.0f; //время перезарядки
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-	float Range = 1000.f; // дальность выстрела (трейса)
+	float TraceMaxDistance = 1000.f; // дальность выстрела (трейса)
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
 	FName MuzzleSocketName = "MuzzleSocket"; //имя сокета, назначенное в меше
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
 	int32 MaxAmmo = 2; // максимальное кол-во патронов
+	UPROPERTY(Replicated)
 	int32 CurrentAmmo = 0; // текущее количество патронов у персонажа
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
 	int32 AmmoPerClip = 3; // кол-во патронов в магазине
+	UPROPERTY(Replicated)
 	int32 CurrentAmmoInClip = 0; // текущее количество патронов в магазине
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-	float TimeBetweenShots = 0.5f;
-	
+	float TimeBetweenShots = 0.1f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = " Projectile")
+	bool bProjectile = false;
+
 	bool bIsReloading = false;
 
 	FTimerHandle FireHandle;

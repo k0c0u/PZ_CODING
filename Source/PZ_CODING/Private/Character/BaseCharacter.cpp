@@ -1,4 +1,5 @@
 #include "Character/BaseCharacter.h"
+
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -7,9 +8,13 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 
+#include "Net/UnrealNetwork.h"
 #include "Weapon/BaseWeapon.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "TimerManager.h"
+
+
+DEFINE_LOG_CATEGORY_STATIC(LogBaseCharacter, All, All);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -24,9 +29,9 @@ ABaseCharacter::ABaseCharacter()
 	BaseLookUpRate = 45.f;
 
 	// Don't rotate when the controller rotates. Let that just affect the camera.
-	bUseControllerRotationPitch = false;
+	/*bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
-	bUseControllerRotationRoll = false;
+	bUseControllerRotationRoll = false;*/
 
 	// Configure character movement
 	GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...	
@@ -36,31 +41,59 @@ ABaseCharacter::ABaseCharacter()
 
 	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(RootComponent);
+	CameraBoom->SetupAttachment(GetRootComponent());
 	CameraBoom->TargetArmLength = 300.0f; // The camera follows at this distance behind the character	
 	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
+	CameraBoom->SocketOffset = FVector(0.0f, 100.0f, 80.0f);
 
 	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
+	FollowCamera->SetupAttachment(CameraBoom); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
-	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
-	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
+	//Set Health
+	MaxHealth = 100.0f;
+	CurrentHealth = MaxHealth;
+	
+	//ProjectileClass = ABaseProjectile::StaticClass();
+	FireRate = 0.25f;
+	bIsFiringWeapon = false;
+}
+
+void ABaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ABaseCharacter, CurrentHealth);
+	DOREPLIFETIME(ABaseCharacter, CurrentWeapon);
 }
 
 void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	
-	CurrentWeapon = GetWorld()->SpawnActor<ABaseWeapon>(Weapon, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParameters);
-	if(!CurrentWeapon) return;
-	CurrentWeapon->SetOwner(this);
-	CurrentWeapon->AttachToComponent(GetMesh(),FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
-
+	if (ensureMsgf(!WeaponClass, TEXT("ABaseCharacter::BeginPlay() WeaponClass is nullptr")))
+	{
+		UE_LOG(LogBaseCharacter, Error, TEXT("WeaponClass not selected"));
+		return;
+	}
+	
+	if(HasAuthority()) //if(GetLocalRole() == ROLE_Authority)
+	{
+		FActorSpawnParameters SpawnParameters;
+		SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		SpawnParameters.Owner = this;
+	
+		CurrentWeapon = GetWorld()->SpawnActor<ABaseWeapon>(WeaponClass, SpawnParameters);
+		if(!CurrentWeapon)
+		{
+			UE_LOG(LogBaseCharacter, Error, TEXT("CurrentWeapon in Character equal nullptr"));
+			return;
+		}
+		
+		CurrentWeapon->AttachToComponent(GetMesh(),FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
+	}
+	
 	// 1.Timer that restores the player's health up to 100 HP (3 health, every 2 seconds)
 	//GetWorldTimerManager().SetTimer(RegenerationHealthTimerHandle, this, &ThisClass::RegenerationHealth, 2.0f, true);
 
@@ -71,27 +104,34 @@ void ABaseCharacter::BeginPlay()
 void ABaseCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
-	
-	CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+
+	if(CurrentWeapon)
+	{
+		CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	}
 }
 ////PZ_08/////
 float ABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
 	AActor* DamageCauser)
 {
 	Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	float DamageApplied = CurrentHealth - DamageAmount;
+	SetCurrentHealth(DamageApplied);
+	return DamageApplied;
 	
-	HealthData.Health -= DamageAmount;
-	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Blue, FString::Printf(TEXT("HealthPlayer %f"), HealthData.Health));
-	return DamageAmount;
+	////PZ_08/////
+	//HealthData.Health -= DamageAmount;
+	//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Blue, FString::Printf(TEXT("HealthPlayer %f"), HealthData.Health));
+	
 }
 ////PZ_08/////
-///
+
 //////////////////////////////////////////////////////////////////////////
 // Input
 
 void ABaseCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
-	// Set up gameplay key bindings
 	check(PlayerInputComponent);
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
@@ -101,10 +141,6 @@ void ABaseCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &ABaseCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &ABaseCharacter::MoveRight);
-
-	// We have 2 versions of the rotation bindings to handle different kinds of devices differently
-	// "turn" handles devices that provide an absolute delta, such as a mouse.
-	// "turnrate" is for devices that we choose to treat as a rate of change, such as an analog joystick
 	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
 	PlayerInputComponent->BindAxis("TurnRate", this, &ABaseCharacter::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
@@ -168,18 +204,39 @@ void ABaseCharacter::MoveRight(float Value)
 
 void ABaseCharacter::StartFire()
 {
-	CurrentWeapon->StartFire();
+	if(CurrentWeapon)
+	{
+		CurrentWeapon->StartFire();
+	}
+	
+
+	//////PZ_09/////
+	/*if(!bIsFiringWeapon)
+	{
+		bIsFiringWeapon = true;
+		GetWorldTimerManager().SetTimer(FiringTimer, this, &ThisClass::StopFire, FireRate, false);
+		HandleFire();
+	}*/
+	//////PZ_09/////
+	
 }
 
 void ABaseCharacter::StopFire()
 {
-	CurrentWeapon->StopFire();
+	
+	if(CurrentWeapon)
+	{
+		CurrentWeapon->StopFire();
+	}
+	
+	//////PZ_09/////
+	//bIsFiringWeapon = false;
+	//////PZ_09/////
 }
 
 void ABaseCharacter::Reload()
 {
 	//CurrentWeapon->Reload();
-	
 	//UKismetSystemLibrary::DoesImplementInterface(CurrentWeapon, UReloadableInterface::StaticClass());
 	
 	if(CurrentWeapon->GetClass()->ImplementsInterface(UReloadableInterface::StaticClass()))
@@ -192,6 +249,41 @@ void ABaseCharacter::Reload()
 		{
 			IReloadableInterface::Execute_Reload(CurrentWeapon);
 		}
+	}
+}
+
+void ABaseCharacter::SetCurrentHealth(float HealthValue)
+{
+	if(GetLocalRole() == ROLE_Authority)
+	{
+		CurrentHealth = FMath::Clamp(HealthValue, 0.0f, MaxHealth);
+		OnHealthUpdate();
+	}
+}
+
+void ABaseCharacter::OnRep_CurrentHealth()
+{
+	OnHealthUpdate();
+}
+
+void ABaseCharacter::OnHealthUpdate()
+{
+	if(IsLocallyControlled())
+	{
+		const FString HealthMessage = FString::Printf(TEXT("You now have %f health remaining"), CurrentHealth);
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, HealthMessage);
+
+		if(CurrentHealth <=0)
+		{
+			const FString DeathMessage = FString::Printf(TEXT("You killed"));
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, DeathMessage);
+		}
+	}
+
+	if(GetLocalRole() == ROLE_Authority)
+	{
+		const FString HealthMessage = FString::Printf(TEXT(" %s now has %f health remaining"),*GetFName().ToString(), CurrentHealth);
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, HealthMessage);
 	}
 }
 
@@ -228,4 +320,18 @@ void ABaseCharacter::DamageToPlayer()
 		Destroy();
 	}
 }
+
+	checkf(WeaponClass, TEXT("WeaponClass not selected"));
+	
+	check(WeaponClass);
+	
+	if (!ensure(WeaponClass))
+	{
+		UE_LOG(LogBaseCharacter, Error, TEXT("WeaponClass not selected"));
+		return;
+	}
+
+	//ensureMsgf(!WeaponClass, TEXT("WeaponClass not selected!"));
+	//ensureAlwaysMsgf(WeaponClass, TEXT( "ABaseCharacter::BeginPlay() WeaponClass is null" ) );
 */
+
