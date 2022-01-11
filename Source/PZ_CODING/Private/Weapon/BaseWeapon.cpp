@@ -55,7 +55,6 @@ void ABaseWeapon::StartFire()
 	{
 		GetWorldTimerManager().SetTimer(FireHandle, this, &ABaseWeapon::Fire, TimeBetweenShots, true);
 	}
-	
 }
 
 void ABaseWeapon::StopFire()
@@ -138,20 +137,14 @@ void ABaseWeapon::ServerReload_Implementation()
 void ABaseWeapon::ServerFire_Implementation()
 {
 	Fire();
-	//GetWorldTimerManager().SetTimer(FireHandle, this, &ABaseWeapon::Fire, TimeBetweenShots, true);
 }
 
 bool ABaseWeapon::ServerFire_Validate()
 {
-	return true;
+	return CanFire();
 }
 void ABaseWeapon::Fire()
 {
-	/*if(GetLocalRole() < ROLE_Authority)
-	{
-		ServerFire();
-	}*/
-	
 	if (!GetWorld() || IsAmmoEmpty())
 	{
 		StopFire();
@@ -269,4 +262,5 @@ void ABaseWeapon::ProjectileShot(AActor* MyOwner)
 		Projectile->FinishSpawning(SpawnTransform);
 	}
 */
+	
 }
